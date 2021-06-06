@@ -76,33 +76,61 @@ These exercises will reiterate what you learned in the "Expanding the data wrang
   1. Summarize the `garden_harvest` data to find the total harvest weight in pounds for each vegetable and day of week (HINT: use the `wday()` function from `lubridate`). Display the results so that the vegetables are rows but the days of the week are columns.
 
 ```{r}
-
+garden_harvest %>% 
+  group_by(vegetable, day = wday(date)) %>% 
+  summarise(total = sum(weight)) %>% 
+  pivot_wider(id_cols = vegetable,
+              names_from = day,
+              values_from = total)
 ```
 
   2. Summarize the `garden_harvest` data to find the total harvest in pound for each vegetable variety and then try adding the plot from the `garden_planting` table. This will not turn out perfectly. What is the problem? How might you fix it?
 
 ```{r}
-
+garden_harvest %>%
+  mutate(wt_lb = weight * 0.00220462) %>% 
+  group_by(vegetable, variety) %>% 
+  summarise(total_lb = sum(wt_lb)) %>% 
+  left_join(garden_planting,
+            by = "variety")
 ```
 
+> Some varieties might not have plot information available.
+
   3. I would like to understand how much money I "saved" by gardening, for each vegetable type. Describe how I could use the `garden_harvest` and `garden_spending` datasets, along with data from somewhere like [this](https://products.wholefoodsmarket.com/search?sort=relevance&store=10542) to answer this question. You can answer this in words, referencing various join functions. You don't need R code but could provide some if it's helpful.
+
+> 
 
   4. Subset the data to tomatoes. Reorder the tomato varieties from smallest to largest first harvest date. Create a barplot of total harvest in pounds for each variety, in the new order.
 
 ```{r}
-
+garden_harvest %>% 
+  filter(vegetable == "tomatoes") %>% 
+  mutate(variety = fct_reorder(variety, date)) %>% 
+  group_by(variety) %>% 
+  summarise(total_lb = sum(weight * 0.00220462)) %>%
+  ggplot(aes(x = total_lb, y = variety)) +
+  geom_col() +
+  labs(y = "tomato variety",
+       x = "total harvest in pounds")
 ```
 
   5. In the `garden_harvest` data, create two new variables: one that makes the varieties lowercase and another that finds the length of the variety name. Arrange the data by vegetable and length of variety name (smallest to largest), with one row for each vegetable variety. HINT: use `str_to_lower()`, `str_length()`, and `distinct()`.
   
 ```{r}
-
+garden_harvest %>% 
+  mutate(variety_low = str_to_lower(variety),
+         variety_length = str_length(variety)) %>% 
+  group_by(vegetable, variety) %>% 
+  arrange(vegetable, variety_length)
 ```
 
   6. In the `garden_harvest` data, find all distinct vegetable varieties that have "er" or "ar" in their name. HINT: `str_detect()` with an "or" statement (use the | for "or") and `distinct()`.
 
 ```{r}
-
+garden_harvest %>% 
+  filter(str_detect(variety, "er | ar")) %>% 
+  distinct(variety)
 ```
 
 
@@ -142,25 +170,38 @@ It's natural to expect that bikes are rented more at some times of day, some day
   7. A density plot, which is a smoothed out histogram, of the events versus `sdate`. Use `geom_density()`.
   
 ```{r}
-
+Trips %>% 
+  ggplot(aes(x = sdate)) +
+  geom_density()
 ```
   
   8. A density plot of the events versus time of day.  You can use `mutate()` with `lubridate`'s  `hour()` and `minute()` functions to extract the hour of the day and minute within the hour from `sdate`. Hint: A minute is 1/60 of an hour, so create a variable where 3:30 is 3.5 and 3:45 is 3.75.
   
 ```{r}
-
+Trips %>% 
+  mutate(time = hour(sdate) + minute(sdate) / 60) %>% 
+  ggplot(aes(x = time)) +
+  geom_density()
 ```
   
   9. A bar graph of the events versus day of the week. Put day on the y-axis.
   
 ```{r}
-
+Trips %>% 
+  mutate(day = wday(sdate)) %>% 
+  ggplot(aes(y = day)) +
+  geom_bar()
 ```
   
   10. Facet your graph from exercise 8. by day of the week. Is there a pattern?
   
 ```{r}
-
+Trips %>% 
+  mutate(time = hour(sdate) + minute(sdate) / 60,
+         day = wday(sdate)) %>% 
+  ggplot(aes(x = time)) +
+  geom_density() +
+  facet_wrap(~(day))
 ```
   
 The variable `client` describes whether the renter is a regular user (level `Registered`) or has not joined the bike-rental organization (`Causal`). The next set of exercises investigate whether these two different categories of users show different rental behavior and how `client` interacts with the patterns you found in the previous exercises. 
@@ -168,39 +209,77 @@ The variable `client` describes whether the renter is a regular user (level `Reg
   11. Change the graph from exercise 10 to set the `fill` aesthetic for `geom_density()` to the `client` variable. You should also set `alpha = .5` for transparency and `color=NA` to suppress the outline of the density function.
   
 ```{r}
-
+Trips %>% 
+  mutate(time = hour(sdate) + minute(sdate) / 60,
+         day = wday(sdate)) %>% 
+  ggplot(aes(x = time)) +
+  geom_density(aes(fill = client, alpha = 0.5, color = NULL)) +
+  facet_wrap(~(day))
 ```
 
   12. Change the previous graph by adding the argument `position = position_stack()` to `geom_density()`. In your opinion, is this better or worse in terms of telling a story? What are the advantages/disadvantages of each?
   
 ```{r}
-
+Trips %>% 
+  mutate(time = hour(sdate) + minute(sdate) / 60,
+         day = wday(sdate)) %>% 
+  ggplot(aes(x = time)) +
+  geom_density(aes(fill = client, alpha = 0.5, color = NULL), position = position_stack()) +
+  facet_wrap(~(day))
 ```
+  
+>
   
   13. In this graph, go back to using the regular density plot (without `position = position_stack()`). Add a new variable to the dataset called `weekend` which will be "weekend" if the day is Saturday or Sunday and  "weekday" otherwise (HINT: use the `ifelse()` function and the `wday()` function from `lubridate`). Then, update the graph from the previous problem by faceting on the new `weekend` variable. 
   
 ```{r}
-
+Trips %>% 
+  mutate(time = hour(sdate) + minute(sdate) / 60,
+         day = wday(sdate),
+         weekend = ifelse(day <= 5, "weekday", "weekend")) %>% 
+  ggplot(aes(x = time)) +
+  geom_density(aes(fill = client, alpha = 0.5, color = NULL)) +
+  facet_wrap(~(weekend))
 ```
   
   14. Change the graph from the previous problem to facet on `client` and fill with `weekday`. What information does this graph tell you that the previous didn't? Is one graph better than the other?
   
 ```{r}
-
+Trips %>% 
+  mutate(time = hour(sdate) + minute(sdate) / 60,
+         day = wday(sdate),
+         weekend = ifelse(day <= 5, "weekday", "weekend")) %>% 
+  ggplot(aes(x = time)) +
+  geom_density(aes(fill = weekend, alpha = 0.5, color = NULL)) +
+  facet_wrap(~(client))
 ```
+  
+>   
   
 ### Spatial patterns
 
   15. Use the latitude and longitude variables in `Stations` to make a visualization of the total number of departures from each station in the `Trips` data. Use either color or size to show the variation in number of departures. We will improve this plot next week when we learn about maps!
   
 ```{r}
-
+Trips %>% 
+  left_join(Stations,
+            by = c("sstation" = "name")) %>% 
+  group_by(lat, long) %>% 
+  ggplot(aes(y = sstation)) +
+  geom_bar()
 ```
   
   16. Only 14.4% of the trips in our data are carried out by casual users. Create a plot that shows which area(s) have stations with a much higher percentage of departures by casual users. What patterns do you notice? (Again, we'll improve this next week when we learn about maps).
   
 ```{r}
+library(dplyr)
 
+Trips %>% 
+  mutate(client_num = ifelse(client == "Casual", 1, 0)) %>% 
+  group_by(sstation) %>% 
+  mutate(perc = sum(client_num) / n()) %>% 
+  ggplot(aes(y = sstation, x = perc)) +
+  geom_col()
 ```
   
 ### Spatiotemporal patterns
@@ -208,22 +287,43 @@ The variable `client` describes whether the renter is a regular user (level `Reg
   17. Make a table with the ten station-date combinations (e.g., 14th & V St., 2014-10-14) with the highest number of departures, sorted from most departures to fewest. Save this to a new dataset and print out the dataset. Hint: `as_date(sdate)` converts `sdate` from date-time format to date format. 
   
 ```{r}
+new <- Trips %>% 
+  mutate(date = fct_infreq(as.factor(as_date(sdate)))) %>% 
+  head(10)
 
+new
 ```
   
   18. Use a join operation to make a table with only those trips whose departures match those top ten station-date combinations from the previous part.
   
 ```{r}
-
+Trips %>% 
+  semi_join(new,
+             by = "sdate")
 ```
   
   19. Build on the code from the previous problem (ie. copy that code below and then %>% into the next step.) and group the trips by client type and day of the week (use the name, not the number). Find the proportion of trips by day within each client type (ie. the proportions for all 7 days within each client type add up to 1). Display your results so day of week is a column and there is a column for each client type. Interpret your results.
+
+```{r}
+Trips %>% 
+  semi_join(new,
+             by = "sdate") %>% 
+  mutate(day = wday(sdate, label = TRUE)) %>% 
+  group_by(client) %>% 
+  mutate(total = n()) %>% 
+  group_by(client, day) %>% 
+  mutate(perc = n() / total)
+```
+
+> interpret
 
 **DID YOU REMEMBER TO GO BACK AND CHANGE THIS SET OF EXERCISES TO THE LARGER DATASET? IF NOT, DO THAT NOW.**
 
 ## GitHub link
 
   20. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 03_exercises.Rmd, provide a link to the 03_exercises.md file, which is the one that will be most readable on GitHub.
+
+> 
 
 ## Challenge problem! 
 
